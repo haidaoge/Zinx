@@ -26,7 +26,7 @@ func main() {
 	}
 
 	for {
-		_, err := conn.Write([]byte("hahaha"))
+		_, err := conn.Write([]byte("客户端消息"))
 		if err != nil {
 			fmt.Println("write error err ", err)
 			return

@@ -1,34 +1,42 @@
 package znet
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"time"
 	"zinx/ziface"
+	"zinx/utils"
 )
 
 //iServer 接口实现，定义一个Server服务类
 type Server struct {
 	//服务器的名称
-	Name string
-	//tcp4 or other
-	IPVersion string
-	//服务绑定的IP地址
-	IP string
-	//服务绑定的端口
-	Port int
+    Name string
+    //tcp4 or other
+    IPVersion string
+    //服务绑定的IP地址
+    IP string
+    //服务绑定的端口
+    Port int
+    //当前Server由用户绑定的回调router,也就是Server注册的链接对应的处理业务
+    Router ziface.IRouter
 }
 
-//============== 定义当前客户端链接的handle api ===========
-func CallBackToClient(conn *net.TCPConn, data []byte, cnt int) error {
-	//回显业务
-	fmt.Println("[Conn Handle] CallBackToClient ... ")
-	if _, err := conn.Write(data[:cnt]); err !=nil {
-		fmt.Println("write back buf err ", err)
-		return errors.New("CallBackToClient error")
-	}
-	return nil
+/*
+  创建一个服务器句柄
+ */
+ func NewServer () ziface.IServer {
+    //先初始化全局配置文件
+    utils.GlobalObject.Reload()
+
+    s:= &Server {
+        Name: utils.GlobalObject.Name,//从全局参数获取
+        IPVersion: "tcp4",
+        IP: utils.GlobalObject.Host,//从全局参数获取
+        Port: utils.GlobalObject.TcpPort,//从全局参数获取
+        Router: nil,
+    }
+    return s
 }
 
 //============== 实现 ziface.IServer 里的全部接口方法 ========
@@ -36,7 +44,10 @@ func CallBackToClient(conn *net.TCPConn, data []byte, cnt int) error {
 //开启网络服务
 func (s *Server) Start() {
 	fmt.Printf("[START] Server listenner at IP: %s, Port %d, is starting\n", s.IP, s.Port)
-
+	fmt.Printf("[Zinx] Version: %s, MaxConn: %d,  MaxPacketSize: %d\n",
+	utils.GlobalObject.Version,
+	utils.GlobalObject.MaxConn,
+	utils.GlobalObject.MaxPacketSize)
 	//开启一个go去做服务端Linster业务
 	go func() {
 		//1 获取一个TCP的Addr
@@ -72,7 +83,7 @@ func (s *Server) Start() {
 			//3.2 DO Server.Start() 设置服务器最大连接控制,如果超过最大连接，那么则关闭此新的连接
 
 			//3.3 处理该新连接请求的 业务 方法， 此时应该有 handler 和 conn是绑定的
-			dealConn := NewConntion(conn, cid, CallBackToClient)
+            dealConn := NewConntion(conn, cid, s.Router)
 			cid ++
 
 			//3.4 启动当前链接的处理业务
@@ -98,16 +109,9 @@ func (s *Server) Serve() {
 	}
 }
 
-/*
-  创建一个服务器句柄
-*/
-func NewServer (name string) ziface.IServer {
-	s:= &Server {
-		Name :name,
-		IPVersion:"tcp4",
-		IP:"0.0.0.0",
-		Port:7777,
-	}
+//路由功能：给当前服务注册一个路由业务方法，供客户端链接处理使用
+func (s *Server)AddRouter(router ziface.IRouter) {
+    s.Router = router
 
-	return s
+    fmt.Println("Add Router succ! " )
 }

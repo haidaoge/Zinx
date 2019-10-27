@@ -1,22 +1,49 @@
-/*
- * @Description: In User Settings Edit
- * @Author: your name
- * @Date: 2019-10-15 17:00:52
- * @LastEditTime: 2019-10-15 17:00:52
- * @LastEditors: your name
- */
 package main
 
 import (
-	"zinx/znet"
+    "fmt"
+    "zinx/ziface"
+    "zinx/znet"
 )
 
-//Server 模块的测试函数
-func main() {
+//ping test 自定义路由
+type PingRouter struct {
+    znet.BaseRouter //一定要先基础BaseRouter
+}
 
-	//1 创建一个server 句柄 s
-	s := znet.NewServer("[zinx V0.1]")
+//Test PreHandle
+func (this *PingRouter) PreHandle(request ziface.IRequest) {
+    fmt.Println("Call Router PreHandle")
+    _, err := request.GetConnection().GetTCPConnection().Write([]byte("before ping ....\n"))
+    if err !=nil {
+        fmt.Println("call back ping ping ping error")
+    }
+}
+//Test Handle
+func (this *PingRouter) Handle(request ziface.IRequest) {
+    fmt.Println("Call PingRouter Handle")
+    _, err := request.GetConnection().GetTCPConnection().Write([]byte("ping...ping...ping\n"))
+    if err !=nil {
+        fmt.Println("call back ping ping ping error")
+    }
+}
 
-	//2 开启服务
-	s.Serve()
+//Test PostHandle
+func (this *PingRouter) PostHandle(request ziface.IRequest) {
+    fmt.Println("Call Router PostHandle")
+    _, err := request.GetConnection().GetTCPConnection().Write([]byte("After ping .....\n"))
+    if err !=nil {
+        fmt.Println("call back ping ping ping error")
+    }
+}
+
+func main(){
+    //创建一个server句柄
+	s := znet.NewServer()
+	
+	//配置路由
+    s.AddRouter(&PingRouter{})
+
+    // 开启服务
+    s.Serve()
 }
