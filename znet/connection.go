@@ -12,13 +12,14 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"zinx/utils"
 	"zinx/ziface"
 )
 
 type Connection struct {
 	//当前Conn属于哪个Server
-	TcpServer ziface.IServer //当前conn属于哪个server，在conn初始化的时候添加即可
+	TcpServer ziface.IServer
 	//当前连接的socket TCP套接字
 	Conn *net.TCPConn
 	//当前连接的ID 也可以称作为SessionID，ID全局唯一
@@ -32,14 +33,21 @@ type Connection struct {
 	//无缓冲管道，用于读、写两个goroutine之间的消息通信
 	msgChan chan []byte
 	//有关冲管道，用于读、写两个goroutine之间的消息通信
-	msgBuffChan chan []byte //定义channel成员
+	msgBuffChan chan []byte
+
+	// ================================
+	//链接属性
+	property map[string]interface{}
+	//保护链接属性修改的锁
+	propertyLock sync.RWMutex
+	// ================================
 }
 
 //创建连接的方法
 func NewConntion(server ziface.IServer, conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandle) *Connection {
 	//初始化Conn属性
 	c := &Connection{
-		TcpServer:    server, //将隶属的server传递进来
+		TcpServer:    server,
 		Conn:         conn,
 		ConnID:       connID,
 		isClosed:     false,
@@ -47,10 +55,11 @@ func NewConntion(server ziface.IServer, conn *net.TCPConn, connID uint32, msgHan
 		ExitBuffChan: make(chan bool, 1),
 		msgChan:      make(chan []byte),
 		msgBuffChan:  make(chan []byte, utils.GlobalObject.MaxMsgChanLen),
+		property:     make(map[string]interface{}), //对链接属性map初始化
 	}
 
 	//将新创建的Conn添加到链接管理中
-	c.TcpServer.GetConnMgr().Add(c) //将当前新创建的连接添加到ConnManager中
+	c.TcpServer.GetConnMgr().Add(c)
 	return c
 }
 
@@ -228,4 +237,32 @@ func (c *Connection) SendBuffMsg(msgId uint32, data []byte) error {
 	c.msgBuffChan <- msg
 
 	return nil
+}
+
+//设置链接属性
+func (c *Connection) SetProperty(key string, value interface{}) {
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
+
+	c.property[key] = value
+}
+
+//获取链接属性
+func (c *Connection) GetProperty(key string) (interface{}, error) {
+	c.propertyLock.RLock()
+	defer c.propertyLock.RUnlock()
+
+	if value, ok := c.property[key]; ok {
+		return value, nil
+	} else {
+		return nil, errors.New("no property found")
+	}
+}
+
+//移除链接属性
+func (c *Connection) RemoveProperty(key string) {
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
+
+	delete(c.property, key)
 }
