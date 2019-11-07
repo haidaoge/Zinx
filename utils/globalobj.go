@@ -68,12 +68,12 @@ func init() {
 		Host:             "0.0.0.0",
 		MaxConn:          12000,
 		MaxPacketSize:    4096,
-		ConfFilePath:     "../../conf/zinx.json",
-		WorkerPoolSize:   10,
+		ConfFilePath:     "./conf/zinx.json",
+		WorkerPoolSize:   1000,
 		MaxWorkerTaskLen: 1024,
 		MaxMsgChanLen:    1024,
 	}
 
 	//从配置文件中加载一些用户配置的参数
-	GlobalObject.Reload()
+	// GlobalObject.Reload()
 }

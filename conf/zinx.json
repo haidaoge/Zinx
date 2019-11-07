@@ -5,7 +5,7 @@
   "MaxConn": 8000,
 	"Version": "V1.0",
 	"MaxPacketSize":    4096,
-	"WorkerPoolSize":   10,
+	"WorkerPoolSize":   1000,
 	"MaxWorkerTaskLen": 1024,
 	"MaxMsgChanLen":    1024
 }
